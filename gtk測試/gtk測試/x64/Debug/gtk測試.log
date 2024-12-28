@@ -1,0 +1,55 @@
+﻿  main.c
+C:\msys64\mingw64\include\glib-2.0\glib\gmacros.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\glib\gmacros.h(839,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\glib\gatomic.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\glib\gfileutils.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\glib\gmain.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\glib\gtestutils.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\glib\guri.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\glib\glib-autocleanups.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\gtk-4.0\gdk\version\gdkversionmacros.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\gobject\gobject.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\gobject\gtype.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\gobject\gtype.h(877,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\gobject\gsignal.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\gio\gdatagrambased.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\gio\giomodule.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\glib-2.0\gio\gsocketconnectable.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\gtk-4.0\gdk\gdktypes.h(1,1): warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
+  (編譯來源檔案 'main.c')
+  
+C:\msys64\mingw64\include\gtk-4.0\gdk\gdktypes.h(37,10): error C1083: 無法開啟包含檔案: 'pango/pango.h': No such file or directory
+  (編譯來源檔案 'main.c')
+  
