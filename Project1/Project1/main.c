@@ -1,308 +1,118 @@
-#include <gtk/gtk.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+package tetris;
 
-/* 數獨遊戲題目與解答 */
-static int puzzle[9][9];
-static int solution[9][9] = {
-    {5, 3, 4, 6, 7, 8, 9, 1, 2},
-    {6, 7, 2, 1, 9, 5, 3, 4, 8},
-    {1, 9, 8, 3, 4, 2, 5, 6, 7},
-    {8, 5, 9, 7, 6, 1, 4, 2, 3},
-    {4, 2, 6, 8, 5, 3, 7, 9, 1},
-    {7, 1, 3, 9, 2, 4, 8, 5, 6},
-    {9, 6, 1, 5, 3, 7, 2, 8, 4},
-    {2, 8, 7, 4, 1, 9, 6, 3, 5},
-    {3, 4, 5, 2, 8, 6, 1, 7, 9}
-};
+import java.io.*;
+import java.net.Socket;
+import java.util.Arrays;
 
-/* 存儲 GtkEntry 指標 */
-static GtkWidget* entries[9][9] = { NULL };
+public class TetrisTestTCPClient {
 
-/* 狀態標籤與計時器 */
-static GtkWidget* status_label = NULL;
-static GtkWidget* timer_label = NULL;
-static int elapsed_time = 0; // 已用時間（秒）
+    private Socket socket;
+    private InputStream in;
+    private OutputStream out;
 
-/* 遊戲難度 */
-static int difficulty = 40;
+    public void connect(String host, int port) throws IOException {
+        socket = new Socket(host, port);
+        in = socket.getInputStream();
+        out = socket.getOutputStream();
+    }
 
-/* 計時器更新函數 */
-static gboolean update_timer(gpointer user_data) {
-    elapsed_time++;
-    char buf[50];
-    snprintf(buf, sizeof(buf), "Elapsed Time: %02d:%02d", elapsed_time / 60, elapsed_time % 60);
-    gtk_label_set_text(GTK_LABEL(timer_label), buf);
-    return TRUE;
-}
+    public void close() throws IOException {
+        if (socket != null) socket.close();
+    }
 
-/* 設置格子文字顏色 */
-static void set_entry_color(GtkWidget* entry, GdkRGBA color) {
-    PangoAttrList* attr_list = pango_attr_list_new();
-    PangoAttribute* fg_color_attr = pango_attr_foreground_new(
-        (guint16)(color.red * 65535),
-        (guint16)(color.green * 65535),
-        (guint16)(color.blue * 65535)
-    );
-    fg_color_attr->start_index = 0;
-    fg_color_attr->end_index = -1;
-    pango_attr_list_insert(attr_list, fg_color_attr);
+    public void sendCommand(String cmd) throws IOException {
+        // 傳送文字指令，需加換行符號
+        String commandWithNewline = cmd + "\n";
+        out.write(commandWithNewline.getBytes("UTF-8"));
+        out.flush();
+    }
 
-    gtk_entry_set_attributes(GTK_ENTRY(entry), attr_list);
-    pango_attr_list_unref(attr_list);
-}
+    /**
+     * 從伺服器讀取回傳的遊戲狀態：
+     * 1 byte: boolean isGameOver (0 or 1)
+     * 4 bytes: int removedLines
+     * 4 bytes: int pngSize
+     * pngSize bytes: PNG圖片資料
+     */
+    public GameResponse readResponse() throws IOException {
+        // 讀1 byte boolean
+        int isOverByte = in.read();
+        if (isOverByte == -1) throw new EOFException("End of stream reached while reading isOver");
 
-/* 提供提示功能 */
-static void on_hint_button_clicked(GtkWidget* button, gpointer user_data) {
-    for (int i = 0; i < 9; i++) {
-        for (int j = 0; j < 9; j++) {
-            if (puzzle[i][j] == 0) {
-                const gchar* text = gtk_editable_get_text(GTK_EDITABLE(entries[i][j]));
-                if (text == NULL || strlen(text) == 0) {
-                    char buf[2];
-                    snprintf(buf, sizeof(buf), "%d", solution[i][j]);
-                    gtk_editable_set_text(GTK_EDITABLE(entries[i][j]), buf);
+        boolean isGameOver = (isOverByte != 0);
 
-                    GdkRGBA blue = { 0.0, 0.0, 1.0, 1.0 };
-                    set_entry_color(entries[i][j], blue);
+        // 讀4 bytes 整數(移除行數)
+        int removedLines = readInt(in);
 
-                    gtk_label_set_text(GTK_LABEL(status_label), "Hint provided!");
-                    return;
-                }
+        // 讀4 bytes png大小
+        int pngSize = readInt(in);
+        if (pngSize < 0 || pngSize > 1024 * 1024) // 防止異常png size
+            throw new IOException("Invalid PNG size: " + pngSize);
+
+        // 讀pngSize bytes圖片資料
+        byte[] pngData = new byte[pngSize];
+        readFully(in, pngData);
+
+        return new GameResponse(isGameOver, removedLines, pngData);
+    }
+
+    // 工具方法：讀4字節整數(大端)
+    private int readInt(InputStream in) throws IOException {
+        byte[] buf = new byte[4];
+        readFully(in, buf);
+        return ((buf[0] & 0xFF) << 24) |
+            ((buf[1] & 0xFF) << 16) |
+            ((buf[2] & 0xFF) << 8) |
+            (buf[3] & 0xFF);
+    }
+
+    // 工具方法：確保讀取指定長度資料
+    private void readFully(InputStream in, byte[] buf) throws IOException {
+        int offset = 0;
+        while (offset < buf.length) {
+            int read = in.read(buf, offset, buf.length - offset);
+            if (read == -1)
+                throw new EOFException("Unexpected end of stream");
+            offset += read;
+        }
+    }
+
+    /**
+     * 輔助類別，用來封裝伺服器回傳的遊戲狀態
+     */
+    public static class GameResponse {
+        public final boolean isGameOver;
+        public final int removedLines;
+        public final byte[] pngData;
+
+        public GameResponse(boolean isGameOver, int removedLines, byte[] pngData) {
+            this.isGameOver = isGameOver;
+            this.removedLines = removedLines;
+            this.pngData = pngData;
+        }
+    }
+
+    // 測試用主函式(選擇性)
+    public static void main(String[] args) {
+        TetrisTestTCPClient client = new TetrisTestTCPClient();
+        try {
+            client.connect("localhost", 12345);
+            client.sendCommand("start");
+            GameResponse resp = client.readResponse();
+
+            System.out.println("Game over: " + resp.isGameOver);
+            System.out.println("Removed lines: " + resp.removedLines);
+            System.out.println("PNG image size: " + resp.pngData.length);
+
+            // 可存檔查看圖片
+            try (FileOutputStream fos = new FileOutputStream("received.png")) {
+                fos.write(resp.pngData);
             }
+
+            client.close();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
         }
     }
-    gtk_label_set_text(GTK_LABEL(status_label), "No hints available!");
-}
-
-/* 保存遊戲進度 */
-static void save_game(GtkWidget* button, gpointer user_data) {
-    FILE* file = fopen("sudoku_save.txt", "w");
-    if (file == NULL) {
-        gtk_label_set_text(GTK_LABEL(status_label), "Failed to save game!");
-        return;
-    }
-
-    for (int i = 0; i < 9; i++) {
-        for (int j = 0; j < 9; j++) {
-            fprintf(file, "%d ", puzzle[i][j]);
-        }
-        fprintf(file, "\n");
-    }
-    fprintf(file, "---\n");
-    for (int i = 0; i < 9; i++) {
-        for (int j = 0; j < 9; j++) {
-            const gchar* text = gtk_editable_get_text(GTK_EDITABLE(entries[i][j]));
-            if (text == NULL || strlen(text) == 0) {
-                fprintf(file, "0 ");
-            }
-            else {
-                fprintf(file, "%s ", text);
-            }
-        }
-        fprintf(file, "\n");
-    }
-
-    fclose(file);
-    gtk_label_set_text(GTK_LABEL(status_label), "Game saved successfully!");
-}
-
-/* 加載遊戲進度 */
-static void load_game(GtkWidget* button, gpointer user_data) {
-    FILE* file = fopen("sudoku_save.txt", "r");
-    if (file == NULL) {
-        gtk_label_set_text(GTK_LABEL(status_label), "No saved game found!");
-        return;
-    }
-
-    for (int i = 0; i < 9; i++) {
-        for (int j = 0; j < 9; j++) {
-            fscanf(file, "%d", &puzzle[i][j]);
-        }
-    }
-
-    char buf[10];
-    fscanf(file, "%s", buf);
-
-    for (int i = 0; i < 9; i++) {
-        for (int j = 0; j < 9; j++) {
-            int value;
-            fscanf(file, "%d", &value);
-            if (value == 0) {
-                gtk_editable_set_text(GTK_EDITABLE(entries[i][j]), "");
-                gtk_editable_set_editable(GTK_EDITABLE(entries[i][j]), TRUE);
-            }
-            else {
-                char text[2];
-                snprintf(text, sizeof(text), "%d", value);
-                gtk_editable_set_text(GTK_EDITABLE(entries[i][j]), text);
-                gtk_editable_set_editable(GTK_EDITABLE(entries[i][j]), puzzle[i][j] == 0);
-            }
-        }
-    }
-
-    fclose(file);
-    gtk_label_set_text(GTK_LABEL(status_label), "Game loaded successfully!");
-}
-
-/* 檢查玩家答案是否正確 */
-static void on_check_button_clicked(GtkWidget* button, gpointer user_data) {
-    gboolean all_correct = TRUE;
-    GdkRGBA green = { 0.0, 1.0, 0.0, 1.0 };
-    GdkRGBA red = { 1.0, 0.0, 0.0, 1.0 };
-
-    for (int i = 0; i < 9; i++) {
-        for (int j = 0; j < 9; j++) {
-            if (puzzle[i][j] == 0) {
-                const gchar* text = gtk_editable_get_text(GTK_EDITABLE(entries[i][j]));
-                if (text == NULL || strlen(text) == 0 || atoi(text) != solution[i][j]) {
-                    set_entry_color(entries[i][j], red);
-                    all_correct = FALSE;
-                }
-                else {
-                    set_entry_color(entries[i][j], green);
-                }
-            }
-        }
-    }
-
-    if (all_correct) {
-        gtk_label_set_text(GTK_LABEL(status_label), "Congratulations! Puzzle solved!");
-    }
-    else {
-        gtk_label_set_text(GTK_LABEL(status_label), "There are some errors. Keep trying!");
-    }
-}
-
-/* 生成數獨題目 */
-static void generate_puzzle(int blanks) {
-    memcpy(puzzle, solution, sizeof(solution));
-    srand(time(NULL));
-    while (blanks > 0) {
-        int row = rand() % 9;
-        int col = rand() % 9;
-        if (puzzle[row][col] != 0) {
-            puzzle[row][col] = 0;
-            blanks--;
-        }
-    }
-}
-
-/* 更新棋盤 */
-static void update_grid() {
-    for (int i = 0; i < 9; i++) {
-        for (int j = 0; j < 9; j++) {
-            if (entries[i][j] == NULL) continue;
-
-            if (puzzle[i][j] != 0) {
-                char buf[2];
-                snprintf(buf, sizeof(buf), "%d", puzzle[i][j]);
-                gtk_editable_set_text(GTK_EDITABLE(entries[i][j]), buf);
-                gtk_editable_set_editable(GTK_EDITABLE(entries[i][j]), FALSE);
-            }
-            else {
-                gtk_editable_set_text(GTK_EDITABLE(entries[i][j]), "");
-                gtk_editable_set_editable(GTK_EDITABLE(entries[i][j]), TRUE);
-            }
-        }
-    }
-}
-
-/* 開始新遊戲 */
-static void start_new_game() {
-    elapsed_time = 0; // 重置計時器
-    generate_puzzle(difficulty);
-    update_grid();
-    gtk_label_set_text(GTK_LABEL(status_label), "New game started!");
-}
-
-/* 設置遊戲難度 */
-static void set_difficulty(GtkWidget* button, gpointer level) {
-    difficulty = GPOINTER_TO_INT(level);
-    start_new_game();
-}
-
-/* 初始化 GUI */
-static void activate(GtkApplication* app, gpointer user_data) {
-    GtkWidget* window;
-    GtkWidget* grid;
-    GtkWidget* vbox;
-    GtkWidget* check_button, * hint_button, * save_button, * load_button;
-    GtkWidget* easy_button, * medium_button, * hard_button;
-
-    window = gtk_application_window_new(app);
-    gtk_window_set_title(GTK_WINDOW(window), "Sudoku");
-    gtk_window_set_default_size(GTK_WINDOW(window), 400, 500);
-
-    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-    gtk_window_set_child(GTK_WINDOW(window), vbox);
-
-    grid = gtk_grid_new();
-    gtk_grid_set_row_spacing(GTK_GRID(grid), 2);
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 2);
-    gtk_box_append(GTK_BOX(vbox), grid);
-
-    for (int i = 0; i < 9; i++) {
-        for (int j = 0; j < 9; j++) {
-            GtkWidget* entry = gtk_entry_new();
-            entries[i][j] = entry;
-            gtk_entry_set_max_length(GTK_ENTRY(entry), 1);
-            gtk_entry_set_alignment(GTK_ENTRY(entry), 0.5f);
-            gtk_grid_attach(GTK_GRID(grid), entry, j, i, 1, 1);
-        }
-    }
-
-    timer_label = gtk_label_new("Elapsed Time: 00:00");
-    gtk_box_append(GTK_BOX(vbox), timer_label);
-
-    easy_button = gtk_button_new_with_label("Easy");
-    g_signal_connect(easy_button, "clicked", G_CALLBACK(set_difficulty), GINT_TO_POINTER(30));
-    gtk_box_append(GTK_BOX(vbox), easy_button);
-
-    medium_button = gtk_button_new_with_label("Medium");
-    g_signal_connect(medium_button, "clicked", G_CALLBACK(set_difficulty), GINT_TO_POINTER(40));
-    gtk_box_append(GTK_BOX(vbox), medium_button);
-
-    hard_button = gtk_button_new_with_label("Hard");
-    g_signal_connect(hard_button, "clicked", G_CALLBACK(set_difficulty), GINT_TO_POINTER(50));
-    gtk_box_append(GTK_BOX(vbox), hard_button);
-
-    save_button = gtk_button_new_with_label("Save Game");
-    g_signal_connect(save_button, "clicked", G_CALLBACK(save_game), NULL);
-    gtk_box_append(GTK_BOX(vbox), save_button);
-
-    load_button = gtk_button_new_with_label("Load Game");
-    g_signal_connect(load_button, "clicked", G_CALLBACK(load_game), NULL);
-    gtk_box_append(GTK_BOX(vbox), load_button);
-
-    hint_button = gtk_button_new_with_label("Hint");
-    g_signal_connect(hint_button, "clicked", G_CALLBACK(on_hint_button_clicked), NULL);
-    gtk_box_append(GTK_BOX(vbox), hint_button);
-
-    check_button = gtk_button_new_with_label("Check");
-    g_signal_connect(check_button, "clicked", G_CALLBACK(on_check_button_clicked), NULL);
-    gtk_box_append(GTK_BOX(vbox), check_button);
-
-    status_label = gtk_label_new("");
-    gtk_box_append(GTK_BOX(vbox), status_label);
-
-    start_new_game();
-    g_timeout_add_seconds(1, update_timer, NULL);
-
-    gtk_window_present(GTK_WINDOW(window));
-}
-
-/* 主程式入口 */
-int main(int argc, char** argv) {
-    GtkApplication* app;
-    int status;
-
-    app = gtk_application_new("org.gtk.sudoku", G_APPLICATION_DEFAULT_FLAGS);
-    g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
-
-    status = g_application_run(G_APPLICATION(app), argc, argv);
-    g_object_unref(app);
-
-    return status;
 }
